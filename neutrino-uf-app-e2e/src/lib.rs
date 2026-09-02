@@ -1,0 +1,19 @@
+//! Neutrino SecretsRoutes Playwright host.
+#![allow(missing_docs)]
+
+mod app;
+#[cfg(feature = "ssr")]
+mod e2e_valence;
+mod gate_demos;
+mod harness_auth_menu;
+mod neutrino_routes_eager;
+#[cfg(feature = "ssr")]
+pub mod seed;
+
+#[cfg(feature = "ssr")]
+pub use app::wire_gauge_permissions_bridge;
+pub use app::{shell, App};
+#[cfg(feature = "ssr")]
+pub use e2e_valence::{e2e_higgs_config, e2e_router, init_e2e_valence};
+#[cfg(feature = "ssr")]
+pub use gate_demos::inject_e2e_session_snapshot;

@@ -1,0 +1,69 @@
+[package]
+name = "neutrino-app"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "Orbital secrets admin UI (NeutrinoRoutes at /secrets)"
+
+[lints]
+workspace = true
+
+[dependencies]
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+leptos_axum = { workspace = true, optional = true }
+
+icondata = { workspace = true }
+icondata_core = { workspace = true }
+turf = { workspace = true }
+
+http = { workspace = true }
+cfg-if = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+log = { workspace = true }
+
+valence = { workspace = true, optional = true }
+uf-product = { workspace = true, default-features = false }
+uf-integrations = { workspace = true, default-features = false }
+uf-search-core = { workspace = true, default-features = false }
+lepton-shell = { workspace = true, default-features = false }
+orbital-macros = { workspace = true }
+orbital-theme = { workspace = true, default-features = false }
+uf-product-macros = { workspace = true }
+higgs = { workspace = true, optional = true }
+neutrino = { workspace = true, default-features = false }
+gauge = { workspace = true, default-features = false, optional = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true }
+base64 = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+
+[features]
+default = []
+hydrate = ["leptos/hydrate", "uf-product/hydrate", "uf-integrations/hydrate", "orbital-theme/hydrate", "lepton-shell/hydrate"]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:leptos_axum",
+    "dep:valence",
+    "dep:higgs",
+    "higgs/ssr",
+    "uf-product/ssr",
+    "uf-integrations/ssr",
+    "orbital-theme/ssr",
+    "lepton-shell/ssr",
+    "uf-search-core/ssr",
+    "neutrino/ssr",
+    "dep:gauge",
+    "gauge/ssr",
+    "dep:base64",
+    "dep:chrono"]

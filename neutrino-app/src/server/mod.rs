@@ -1,0 +1,323 @@
+//! Permission-gated server functions for Neutrino vault operations.
+//!
+//! Thin Higgs wrappers over [`neutrino::vault`]. Domain contracts are tested
+//! in the `neutrino` crate (`vault_crud_contract`, `vault_authz_contract`).
+//! Gauge RBAC deny/allow for these permission names is covered by
+//! `vault_server_rbac`.
+//!
+//! # Authorization layers
+//!
+//! 1. **Gauge coarse** — `#[uf_product_macros::server(permission = "...")]` requires the
+//!    named permission on the request actor.
+//! 2. **Valence privacy** — session [`higgs::Higgs::valence`] drives ORM access; Neutrino
+//!    schemas enforce per-secret Gauge grants inside Valence (no mid-request System elevate).
+//! 3. **Per-secret bridge** — [`neutrino::VaultAccessContext`] remains a compat fallback
+//!    where Gauge bundles were skipped (control-plane seals).
+//! 4. **Audit** — success rows append under the session actor; denials use a System sink.
+
+use leptos::prelude::*;
+#[cfg(not(feature = "ssr"))]
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "ssr")]
+use valence::Actor;
+
+/// Row for vault list views (no ciphertext).
+#[cfg(feature = "ssr")]
+pub use neutrino::VaultSecretRow;
+
+/// One-shot reveal payload (base64 for JSON-safe transport).
+#[cfg(feature = "ssr")]
+pub use neutrino::RevealedVaultSecret;
+
+/// Row for vault list views (no ciphertext) — hydrate stub shape.
+#[cfg(not(feature = "ssr"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VaultSecretRow {
+    /// Secret id.
+    pub id: String,
+    /// Human-readable secret name.
+    pub name: String,
+    /// Scope path the secret is stored under (e.g. `/gluon/provider_account/...`).
+    pub scope_path: String,
+    /// Secret kind/category (free-form, product-defined).
+    pub kind: String,
+    /// Current version number (increments on rotate).
+    pub current_version: i64,
+    /// RFC 3339 creation timestamp.
+    pub created_at: String,
+}
+
+/// One-shot reveal payload (base64 for JSON-safe transport) — hydrate stub shape.
+#[cfg(not(feature = "ssr"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevealedVaultSecret {
+    /// Base64-encoded plaintext; never persisted client-side.
+    pub plaintext_b64: String,
+}
+
+/// Permission names enforced by vault `#[server]` wrappers.
+#[cfg(feature = "ssr")]
+pub mod vault_permissions {
+    /// `list_vault_secrets` / `neutrino_vault_ping`.
+    pub const SECRETS_READ: &str = "SecretsRead";
+    /// `reveal_vault_secret`.
+    pub const SECRETS_REVEAL: &str = "SecretsReveal";
+    /// `create_vault_secret` / `delete_vault_secret`.
+    pub const SECRETS_WRITE: &str = "SecretsWrite";
+    /// `rotate_vault_secret`.
+    pub const SECRETS_ROTATE: &str = "SecretsRotate";
+
+    /// All vault server-fn permission names.
+    pub const ALL: &[&str] = &[SECRETS_READ, SECRETS_REVEAL, SECRETS_WRITE, SECRETS_ROTATE];
+}
+
+#[cfg(feature = "ssr")]
+fn session_valence_from_ctx(ctx: &higgs::Higgs) -> Result<valence::Valence, ServerFnError> {
+    ctx.valence()
+        .map_err(|e| ServerFnError::new(format!("Failed to build request Valence: {e}")))
+}
+
+// `Actor` only resolves when `valence` is enabled (via this crate's own `ssr`
+// feature); this helper is only ever called from SSR-only server fn bodies.
+#[cfg(feature = "ssr")]
+fn actor_owner_label(actor: Actor) -> String {
+    match actor {
+        // SessionSnapshot / Higgs already use `user:…` ids (gauge e2e convention).
+        Actor::User { user_id } => {
+            if user_id.starts_with("user:") {
+                user_id
+            } else {
+                format!("user:{user_id}")
+            }
+        }
+        Actor::ServiceUser { service_name } => {
+            if service_name.starts_with("service:") {
+                service_name
+            } else {
+                format!("service:{service_name}")
+            }
+        }
+        Actor::System { operation } => format!("system:{operation}"),
+        Actor::Anonymous => "anonymous".to_string(),
+    }
+}
+
+/// Client-safe message when domain failures must not leak internal detail.
+#[cfg(feature = "ssr")]
+const INTERNAL_VAULT_ERROR: &str = "An internal vault error occurred. Check server logs.";
+
+/// Build vault access context: owner match + optional Super User break-glass `/`.
+#[cfg(feature = "ssr")]
+async fn vault_access_from_ctx(
+    ctx: &higgs::Higgs,
+) -> Result<neutrino::VaultAccessContext, ServerFnError> {
+    let actor_label = actor_owner_label(ctx.actor());
+    let user_v = session_valence_from_ctx(ctx)?;
+    vault_access_for_actor(&user_v, actor_label).await
+}
+
+/// Maps session Valence + actor label to [`neutrino::VaultAccessContext`].
+#[cfg(feature = "ssr")]
+async fn vault_access_for_actor(
+    user_v: &valence::Valence,
+    actor_label: String,
+) -> Result<neutrino::VaultAccessContext, ServerFnError> {
+    let is_super = gauge::super_user::actor_is_super_user(user_v)
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to evaluate Super User access: {e}")))?;
+    if is_super {
+        Ok(neutrino::VaultAccessContext::break_glass(actor_label))
+    } else {
+        Ok(neutrino::VaultAccessContext::owner_only(actor_label))
+    }
+}
+
+#[cfg(feature = "ssr")]
+fn map_neutrino_error(err: neutrino::NeutrinoError) -> ServerFnError {
+    use neutrino::NeutrinoError;
+    match &err {
+        NeutrinoError::NotFound { .. }
+        | NeutrinoError::AccessDenied { .. }
+        | NeutrinoError::Validation { .. } => ServerFnError::new(err.to_string()),
+        NeutrinoError::Config(_)
+        | NeutrinoError::Crypto { .. }
+        | NeutrinoError::Unsupported { .. }
+        | NeutrinoError::Service { .. } => {
+            tracing::warn!(
+                target: "neutrino_app",
+                error = %err,
+                "vault server fn internal failure"
+            );
+            ServerFnError::new(INTERNAL_VAULT_ERROR)
+        }
+    }
+}
+
+#[cfg(all(test, feature = "ssr"))]
+mod tests {
+    use super::{actor_owner_label, map_neutrino_error, INTERNAL_VAULT_ERROR};
+    use neutrino::NeutrinoError;
+    use valence::Actor;
+
+    #[test]
+    fn actor_owner_label_formats_session_actors() {
+        assert_eq!(
+            actor_owner_label(Actor::User {
+                user_id: "alice".into()
+            }),
+            "user:alice"
+        );
+        assert_eq!(
+            actor_owner_label(Actor::User {
+                user_id: "user:bob".into()
+            }),
+            "user:bob"
+        );
+        assert_eq!(
+            actor_owner_label(Actor::ServiceUser {
+                service_name: "cron".into()
+            }),
+            "service:cron"
+        );
+        assert_eq!(actor_owner_label(Actor::Anonymous), "anonymous");
+    }
+
+    #[test]
+    fn map_neutrino_error_passes_client_safe_variants() {
+        let not_found = map_neutrino_error(NeutrinoError::NotFound { id: "sid-1".into() });
+        assert!(not_found.to_string().contains("secret not found"));
+
+        let denied = map_neutrino_error(NeutrinoError::AccessDenied {
+            operation: "reveal",
+        });
+        assert!(denied.to_string().contains("not authorized"));
+
+        let validation = map_neutrino_error(NeutrinoError::Validation {
+            field: "Name",
+            message: "required".into(),
+        });
+        assert!(validation.to_string().contains("required"));
+    }
+
+    #[test]
+    fn map_neutrino_error_hides_internal_variants() {
+        let internal = map_neutrino_error(NeutrinoError::Unsupported {
+            operation: "delete",
+        });
+        assert!(internal.to_string().contains(INTERNAL_VAULT_ERROR));
+        assert!(!internal.to_string().contains("delete"));
+    }
+}
+
+#[cfg(feature = "ssr")]
+fn store_for_request(
+    ctx: &higgs::Higgs,
+    session_v: valence::Valence,
+) -> neutrino::ValenceSealedStore {
+    let actor = actor_owner_label(ctx.actor());
+    neutrino::store_from_valence_for_request(session_v, actor)
+}
+
+/// Verifies that the sealed store can be reached (RBAC: [`crate::permissions::NeutrinoPermission::SecretsRead`]).
+#[uf_product_macros::server(permission = "SecretsRead")]
+pub async fn neutrino_vault_ping() -> Result<(), ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    neutrino::assert_neutrino_catalog_seeded(&session_valence_from_ctx(&ctx)?)
+        .await
+        .map_err(map_neutrino_error)?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let store = store_for_request(&ctx, session_v);
+    neutrino::neutrino_vault_ping(&store)
+        .await
+        .map_err(map_neutrino_error)
+}
+
+/// Lists non-sensitive metadata for vault secrets visible to the caller.
+#[uf_product_macros::server(permission = "SecretsRead")]
+pub async fn list_vault_secrets() -> Result<Vec<VaultSecretRow>, ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let access = vault_access_from_ctx(&ctx).await?;
+    neutrino::list_vault_secrets(&session_v, &access)
+        .await
+        .map_err(map_neutrino_error)
+}
+
+/// Creates a new secret (version 1).
+#[uf_product_macros::server(permission = "SecretsWrite")]
+pub async fn create_vault_secret(
+    /// Human-readable secret name.
+    name: String,
+    /// Scope path the secret is stored under (e.g. `/gluon/provider_account/...`).
+    scope_path: String,
+    /// Secret kind/category (free-form, product-defined).
+    kind: String,
+    /// Plaintext secret value to seal and store.
+    plaintext: String,
+) -> Result<VaultSecretRow, ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let owner = actor_owner_label(ctx.actor());
+    let store = store_for_request(&ctx, session_v);
+    neutrino::create_vault_secret(&store, name, scope_path, kind, plaintext, owner)
+        .await
+        .map_err(map_neutrino_error)
+}
+
+/// Returns the current version plaintext (base64). Never persisted client-side.
+#[uf_product_macros::server(permission = "SecretsReveal")]
+pub async fn reveal_vault_secret(
+    /// Unique identifier of the secret to reveal.
+    id: String,
+) -> Result<RevealedVaultSecret, ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let access = vault_access_from_ctx(&ctx).await?;
+    let store = store_for_request(&ctx, session_v);
+    neutrino::reveal_vault_secret(&store, id, &access)
+        .await
+        .map_err(map_neutrino_error)
+}
+
+/// Deletes a secret and all versions (hard delete with prior audit event in Neutrino).
+#[uf_product_macros::server(permission = "SecretsWrite")]
+pub async fn delete_vault_secret(
+    /// Unique identifier of the secret to delete.
+    id: String,
+) -> Result<(), ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let access = vault_access_from_ctx(&ctx).await?;
+    let store = store_for_request(&ctx, session_v);
+    neutrino::delete_vault_secret(&store, id, &access)
+        .await
+        .map_err(map_neutrino_error)
+}
+
+/// Rotates ciphertext to a new version (Photon / Gluon bootstrap publish is deferred).
+#[uf_product_macros::server(permission = "SecretsRotate")]
+pub async fn rotate_vault_secret(
+    /// Unique identifier of the secret to rotate.
+    id: String,
+    /// New plaintext value to seal as the next version.
+    new_plaintext: String,
+) -> Result<VaultSecretRow, ServerFnError> {
+    let ctx = higgs::Higgs::from_request().await?;
+    let session_v = session_valence_from_ctx(&ctx)?;
+    let actor = actor_owner_label(ctx.actor());
+    let access = vault_access_from_ctx(&ctx).await?;
+    let store = store_for_request(&ctx, session_v);
+    let secret_id = id.clone();
+    let row = neutrino::rotate_vault_secret(&store, id, new_plaintext, actor.as_str(), &access)
+        .await
+        .map_err(map_neutrino_error)?;
+
+    tracing::debug!(
+        target: "neutrino_app",
+        secret_id = %secret_id,
+        "vault rotate complete (Photon publish deferred)"
+    );
+
+    Ok(row)
+}
