@@ -1,6 +1,6 @@
 # Neutrino UF App
 
-[GitHub](https://github.com/deathbreakfast/neutrino-uf-app) ·
+[GitHub](https://github.com/unified-field-dev/neutrino-uf-app) ·
 `cargo doc -p neutrino-app --features ssr --open`
 
 ## About
@@ -23,7 +23,7 @@ Hosts supply Valence + auth, enable `ssr` / hydrate to match the host, and mount
 ```toml
 [dependencies]
 # Tracks main; pin rev for reproducible production builds.
-neutrino-app = { git = "https://github.com/deathbreakfast/neutrino-uf-app", package = "neutrino-app", branch = "main", default-features = false }
+neutrino-app = { git = "https://github.com/unified-field-dev/neutrino-uf-app", package = "neutrino-app", branch = "main", default-features = false }
 neutrino = { git = "https://github.com/unified-field-dev/neutrino", package = "neutrino", branch = "main", default-features = false }
 ```
 

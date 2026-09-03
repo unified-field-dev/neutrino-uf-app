@@ -1315,7 +1315,7 @@ dependencies = [
 [[package]]
 name = "gauge"
 version = "0.1.0"
-source = "git+https://github.com/unified-field-dev/gauge?branch=main#5c0e9dca0bd948947cc2744282c70635f0daeca2"
+source = "git+https://github.com/unified-field-dev/gauge?branch=main#cd974829382821fd9b0d3e470bfa14292be09589"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2723,7 +2723,7 @@ dependencies = [
 [[package]]
 name = "neutrino"
 version = "0.1.0"
-source = "git+https://github.com/unified-field-dev/neutrino?branch=main#140a1d7834929a5bef22e4117c0ff20c9abc09c0"
+source = "git+https://github.com/unified-field-dev/neutrino?branch=main#5c6f4f94d7c9fc0a74e1a1fd4ed2111dddb73fca"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2771,6 +2771,8 @@ dependencies = [
  "serde_json",
  "tracing",
  "turf",
+ "uf-help",
+ "uf-help-macros",
  "uf-integrations",
  "uf-product",
  "uf-product-macros",
@@ -2783,7 +2785,7 @@ dependencies = [
 [[package]]
 name = "neutrino-spectra-telemetry"
 version = "0.1.0"
-source = "git+https://github.com/unified-field-dev/neutrino?branch=main#140a1d7834929a5bef22e4117c0ff20c9abc09c0"
+source = "git+https://github.com/unified-field-dev/neutrino?branch=main#5c6f4f94d7c9fc0a74e1a1fd4ed2111dddb73fca"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2827,6 +2829,7 @@ dependencies = [
  "tokio",
  "tower-http",
  "tower-sessions",
+ "uf-help",
  "uf-integrations",
  "uf-product",
  "uf-valence",
@@ -5839,7 +5842,7 @@ dependencies = [
 [[package]]
 name = "uf-product-macros"
 version = "0.1.0"
-source = "git+https://github.com/unified-field-dev/unified-field-product?branch=main#9a1b5ecaecb22dc9e2a042a7cf28e9cc74582d3d"
+source = "git+https://github.com/unified-field-dev/unified-field-product?branch=main#c78c488101c5310222dd7bfeaa50b97182da5edd"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -5867,7 +5870,7 @@ dependencies = [
 [[package]]
 name = "uf-search-core"
 version = "0.1.0"
-source = "git+https://github.com/unified-field-dev/unified-field-product?branch=main#9a1b5ecaecb22dc9e2a042a7cf28e9cc74582d3d"
+source = "git+https://github.com/unified-field-dev/unified-field-product?branch=main#c78c488101c5310222dd7bfeaa50b97182da5edd"
 dependencies = [
  "anyhow",
  "serde",

@@ -39,6 +39,11 @@ Partial role (requestor: read+write+rotate, no reveal): `pw-vault-requestor-muta
 
 ACL placeholder route: `pw-vault-acl-placeholder-happy`
 
+Help spotlight: `help-spotlight-skips-when-seeded`, `help-spotlight-skips-auth-gate`,
+`help-spotlight-green-/secrets`, `help-spotlight-green-/secrets/acl`
+(default `seedAuth` marks Neutrino tour steps seen in `localStorage`; pass
+`{ help_tour: true }` to clear and walk Next→Finish)
+
 ### Deferred
 
 | ID | Why deferred |

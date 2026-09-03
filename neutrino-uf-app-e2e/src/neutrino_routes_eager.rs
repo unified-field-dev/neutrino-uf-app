@@ -10,6 +10,7 @@ use neutrino_app::{AclManagePage, NeutrinoVerifiedGuardRouteView, SecretsListPag
 /// Same paths as production [`neutrino_app::NeutrinoRoutes`], without `Lazy`.
 #[component(transparent)]
 pub fn NeutrinoRoutesEager() -> impl leptos_router::MatchNestedRoutes + Clone {
+    neutrino_app::ensure_help_steps_linked();
     view! {
         <ParentRoute path=path!("secrets") view=NeutrinoVerifiedGuardRouteView>
             <Route path=path!("") view=SecretsListPage />

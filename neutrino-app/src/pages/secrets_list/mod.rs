@@ -13,6 +13,7 @@ use uf_product::services::permission_server_errors::{
     report_server_fn_error_with_bus, use_permission_toast_bus,
 };
 
+use crate::help_steps::SecretsTourDialogs;
 use crate::server::{
     create_vault_secret, delete_vault_secret, list_vault_secrets, reveal_vault_secret,
     rotate_vault_secret, VaultSecretRow,
@@ -20,6 +21,7 @@ use crate::server::{
 
 #[component]
 /// Lists Neutrino vault secrets with create / reveal / rotate / delete flows.
+#[allow(clippy::too_many_lines)] // dialog signal graph lives with the page shell
 pub fn SecretsListPage() -> impl IntoView {
     let permission_toast_bus = use_permission_toast_bus();
     let refresh_trigger = RwSignal::new(0u32);
@@ -51,6 +53,13 @@ pub fn SecretsListPage() -> impl IntoView {
     let delete_submitting = RwSignal::new(false);
 
     let action_busy_id = RwSignal::new(Option::<String>::None);
+
+    provide_context(SecretsTourDialogs {
+        create_open,
+        reveal_open,
+        rotate_open,
+        delete_open,
+    });
 
     let on_cancel_create = move |_| {
         create_open.set(false);
@@ -178,8 +187,10 @@ pub fn SecretsListPage() -> impl IntoView {
         <ContentContainer>
             <Flex vertical=true gap=SpacingSize::Size240.flex_gap()>
                 <Flex justify=FlexJustify::SpaceBetween align=FlexAlign::Center>
-                    <Title3>"Secret vault"</Title3>
-                    <div data-testid="neutrino-create-secret-btn">
+                    <div id="secrets-page-title">
+                        <Title3>"Secret vault"</Title3>
+                    </div>
+                    <div id="secrets-create-button" data-testid="neutrino-create-secret-btn">
                         <Button
                             appearance=ButtonAppearance::Primary
                             on_click=Callback::new(move |_| {
@@ -192,9 +203,11 @@ pub fn SecretsListPage() -> impl IntoView {
                     </div>
                 </Flex>
 
-                <Caption1>
-                    "Reveal and rotate are permission-gated server-side; buttons stay visible and return 403 if your role lacks access."
-                </Caption1>
+                <div id="secrets-permissions-note">
+                    <Caption1>
+                        "Reveal and rotate are permission-gated server-side; buttons stay visible and return 403 if your role lacks access."
+                    </Caption1>
+                </div>
 
                 <CreateSecretDialog
                     open=create_open

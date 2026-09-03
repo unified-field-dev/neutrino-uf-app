@@ -15,7 +15,203 @@ export type SeedFixtures = {
   admin_secret_name: string;
 };
 
-export async function seedAuth(page: Page, auth: SeedAuthKind) {
+/** All Neutrino Help inventory keys — seed as seen so non-tour specs stay quiet. */
+const NEUTRINO_HELP_STEPS_SEEN = [
+  { route: "/secrets", feature_highlight: "secrets-intro", spotlight: null, replay: false },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-page-title",
+    spotlight: "secrets-page-title",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-permissions-note",
+    spotlight: "secrets-permissions-note",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create",
+    spotlight: "secrets-create-button",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-col-name",
+    spotlight: "secrets-col-name",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-col-scope",
+    spotlight: "secrets-col-scope",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-col-kind",
+    spotlight: "secrets-col-kind",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-col-version",
+    spotlight: "secrets-col-version",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-col-created",
+    spotlight: "secrets-col-created",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-name",
+    spotlight: "secrets-create-name",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-scope",
+    spotlight: "secrets-create-scope",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-kind",
+    spotlight: "secrets-create-kind",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-plaintext",
+    spotlight: "secrets-create-plaintext",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-cancel",
+    spotlight: "secrets-create-cancel",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-create-submit",
+    spotlight: "secrets-create-submit",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-reveal",
+    spotlight: "secrets-action-reveal",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-reveal-value",
+    spotlight: "secrets-reveal-plaintext",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-reveal-close",
+    spotlight: "secrets-reveal-close",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-rotate",
+    spotlight: "secrets-action-rotate",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-rotate-plaintext",
+    spotlight: "secrets-rotate-plaintext",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-rotate-submit",
+    spotlight: "secrets-rotate-submit",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-delete",
+    spotlight: "secrets-action-delete",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-delete-confirm",
+    spotlight: "secrets-delete-confirm",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-nav-secrets",
+    spotlight: "secrets-nav-secrets",
+    replay: false,
+  },
+  {
+    route: "/secrets",
+    feature_highlight: "secrets-nav-acl",
+    spotlight: "secrets-nav-acl",
+    replay: false,
+  },
+  {
+    route: "/secrets/acl",
+    feature_highlight: "secrets-acl-intro",
+    spotlight: null,
+    replay: false,
+  },
+  {
+    route: "/secrets/acl",
+    feature_highlight: "secrets-acl-title",
+    spotlight: "secrets-acl-title",
+    replay: false,
+  },
+  {
+    route: "/secrets/acl",
+    feature_highlight: "secrets-acl-empty",
+    spotlight: "secrets-acl-empty",
+    replay: false,
+  },
+  {
+    route: "/secrets/acl",
+    feature_highlight: "secrets-acl-nav-secrets",
+    spotlight: "secrets-nav-secrets",
+    replay: false,
+  },
+] as const;
+
+export async function seedAuth(
+  page: Page,
+  auth: SeedAuthKind,
+  opts?: { help_tour?: boolean },
+) {
+  const helpTour = opts?.help_tour ?? false;
+  await page.addInitScript(
+    ([enableTour, seenSteps]) => {
+      try {
+        if (enableTour) {
+          if (!sessionStorage.getItem("uf.help.e2e_tour_cleared")) {
+            localStorage.removeItem("uf.help.tour_steps");
+            sessionStorage.setItem("uf.help.e2e_tour_cleared", "1");
+          }
+          return;
+        }
+        localStorage.setItem("uf.help.tour_steps", JSON.stringify(seenSteps));
+      } catch {
+        /* ignore */
+      }
+    },
+    [helpTour, NEUTRINO_HELP_STEPS_SEEN] as const,
+  );
+
   const res = await page.request.post("/api/test/seed-data", {
     data: { auth },
   });
@@ -81,11 +277,15 @@ export async function expectMutationDenied(page: Page) {
   ).toBeVisible({ timeout: 60_000 });
 }
 
-/** Open the row actions Menu (Orbital trigger button). */
-export async function openSecretActions(page: Page, name: string) {
+/** Click Reveal / Rotate / Delete on a vault row. */
+export async function clickSecretAction(
+  page: Page,
+  name: string,
+  action: "Reveal" | "Rotate" | "Delete",
+) {
   await page
     .getByTestId(`neutrino-secret-actions-${name}`)
-    .getByRole("button", { name: /Open secret actions/i })
+    .getByRole("button", { name: new RegExp(`^${action} secret$`, "i") })
     .click();
 }
 

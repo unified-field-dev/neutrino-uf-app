@@ -12,10 +12,15 @@
 //!   expose list, create, reveal, rotate, and delete pages at `/secrets`, gated
 //!   by an authenticated verified session. Mount once when composing the host
 //!   route tree at startup. [Get started](#mount-neutrino-routes).
+//! - **Help spotlight tours** — Route-scoped Orbital spotlights that teach the
+//!   vault list and ACL placeholder. Call [`ensure_help_steps_linked`] so inventory
+//!   links into the host; enable `offering-help` on the product shell.
+//!   [Get started](#help-spotlight-tours).
 //!
 //! Layout and guard: [`NeutrinoAppLayout`], [`NeutrinoVerifiedGuardRouteView`].
 //! Pages: [`pages::SecretsListPage`], [`pages::AclManagePage`]. Server wrappers:
 //! [`mod@server`]. Permissions: [`permissions::NeutrinoPermission`].
+//! Help inventory: [`mod@help_steps`].
 //!
 //! ## Module map
 //!
@@ -23,6 +28,7 @@
 //! |--------|------|
 //! | [`layout`] | Orbital shell (app bar + nav) wrapping routed pages |
 //! | [`pages`] | Vault list and ACL placeholder route pages |
+//! | [`mod@help_steps`] | Help spotlight tour inventory; call [`ensure_help_steps_linked`] |
 //! | [`mod@server`] | Higgs `#[server]` wrappers over `neutrino::vault` |
 //! | [`permissions`] | `Secrets*` permission manifest for host registration |
 //! | [`shell`] | Re-exports shared `uf-integrations` shell components |
@@ -89,6 +95,34 @@
 //! `ssr`, list/create/reveal calls fail at the Leptos server-fn boundary rather than
 //! at route mount.
 //!
+//! ## Help spotlight tours
+//!
+//! Secrets ships Orbital Help spotlights for the vault list (`/secrets`) and ACL
+//! placeholder (`/secrets/acl`). Hosts that enable `offering-help` (or `full`) mount
+//! `HelpTourPlayer`. Call [`ensure_help_steps_linked`] once at host startup (when
+//! mounting routes) so `inventory` submissions from [`mod@help_steps`] are retained
+//! and tours can run.
+//!
+//! **Prerequisites:** `uf-help` hydrate/ssr features on this crate; product host with
+//! Help player mounted (`uf-integrations` `offering-help` or `full`); authenticated
+//! session when Valence visit tracking is enabled.
+//!
+//! ```rust,ignore
+//! use neutrino_app::{ensure_help_steps_linked, NeutrinoRoutes};
+//!
+//! ensure_help_steps_linked();
+//! // Mount <NeutrinoRoutes /> under the host <Routes>.
+//! ```
+//!
+//! On success, visiting `/secrets` (and `/secrets/acl`) can show pending spotlight
+//! steps. Replay restarts the tour for the current route via the Help menu. If the
+//! host omitted `offering-help`, `HelpTourPlayer` is absent and steps never appear
+//! even when inventory linked. Skipping `ensure_help_steps_linked` drops inventory
+//! submissions so the player has nothing to show.
+//!
+//! Next: open `/secrets` in a host with Help enabled, or follow
+//! [Mount Neutrino routes](#mount-neutrino-routes) if the route tree is not mounted yet.
+//!
 //! ## Feature flags
 //!
 //! | Flag | What it enables |
@@ -99,6 +133,7 @@
 //! ## Examples
 //!
 //! - Mount path: [Mount Neutrino routes](#mount-neutrino-routes)
+//! - Help tours: [Help spotlight tours](#help-spotlight-tours)
 //! - Domain contracts: `cargo test -p neutrino --features ssr --test vault_crud_contract`
 //! - Domain host without UI: `CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=target-neutrino cargo run -p vault-host`
 
@@ -111,6 +146,8 @@ use leptos_router::{
 };
 use uf_product_macros::uf_app;
 
+/// Help spotlight tour inventory ([`mod@help_steps`]).
+pub mod help_steps;
 /// Shell layout wrapping routed pages ([`NeutrinoAppLayout`]).
 pub mod layout;
 mod lazy_routes;
@@ -119,6 +156,7 @@ pub mod permissions;
 pub mod server;
 pub mod shell;
 
+pub use help_steps::ensure_help_steps_linked;
 pub use layout::NeutrinoAppLayout;
 pub use lazy_routes::{
     prefetch_family, AclManageRoute, NeutrinoVerifiedGuardRouteView, SecretsListRoute,
@@ -143,6 +181,7 @@ uf_app! {
 #[orbital_macros::orbital_routes_extract]
 #[component(transparent)]
 pub fn NeutrinoRoutes() -> impl leptos_router::MatchNestedRoutes + Clone {
+    crate::help_steps::ensure_help_steps_linked();
     view! {
         <ParentRoute path=path!("secrets") view=NeutrinoVerifiedGuardRouteView>
             <Route path=path!("") view={Lazy::<SecretsListRoute>::new()} />

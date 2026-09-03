@@ -12,13 +12,19 @@ use uf_product::primitives::Flex;
 pub fn AclManagePage() -> impl IntoView {
     view! {
         <ContentContainer data_testid="neutrino-acl-placeholder-page">
+            <div id="secrets-acl-page">
             <Flex vertical=true gap=SpacingSize::Size240.flex_gap()>
-                <Title3>"Secret ACLs"</Title3>
-                <EmptyState
-                    message="Fine-grained per-secret ACL editing is not available yet."
-                    description="Use the secrets list to rotate and audit; ACL matrix UI will land here."
-                />
+                <div id="secrets-acl-title">
+                    <Title3>"Secret ACLs"</Title3>
+                </div>
+                <div id="secrets-acl-empty">
+                    <EmptyState
+                        message="Fine-grained per-secret ACL editing is not available yet."
+                        description="Use the secrets list to rotate and audit; ACL matrix UI will land here."
+                    />
+                </div>
             </Flex>
+            </div>
         </ContentContainer>
     }
 }

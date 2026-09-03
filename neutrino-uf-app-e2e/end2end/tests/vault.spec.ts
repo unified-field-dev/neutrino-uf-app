@@ -4,7 +4,7 @@ import {
   seedAuth,
   waitForHydrated,
   expectMutationDenied,
-  openSecretActions,
+  clickSecretAction,
 } from "./fixtures";
 
 test.describe("pw-vault-crud", () => {
@@ -38,8 +38,7 @@ test.describe("pw-vault-crud", () => {
       "1",
     );
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Reveal" }).click();
+    await clickSecretAction(page, name, "Reveal");
     await expect(page.getByTestId("neutrino-reveal-secret-dialog")).toBeVisible();
     await expect(page.getByTestId("neutrino-reveal-plaintext").locator("input")).toHaveValue(
       Buffer.from("v1-plaintext").toString("base64"),
@@ -47,8 +46,7 @@ test.describe("pw-vault-crud", () => {
     );
     await page.getByTestId("neutrino-reveal-close").click();
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Rotate" }).click();
+    await clickSecretAction(page, name, "Rotate");
     await page.getByLabel("New plaintext").fill("v2-plaintext");
     await page.getByTestId("neutrino-rotate-submit").click();
     await expect(page.getByTestId(`neutrino-secret-version-${name}`)).toHaveText(
@@ -56,16 +54,14 @@ test.describe("pw-vault-crud", () => {
       { timeout: 60_000 },
     );
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Reveal" }).click();
+    await clickSecretAction(page, name, "Reveal");
     await expect(page.getByTestId("neutrino-reveal-plaintext").locator("input")).toHaveValue(
       Buffer.from("v2-plaintext").toString("base64"),
       { timeout: 60_000 },
     );
     await page.getByTestId("neutrino-reveal-close").click();
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await clickSecretAction(page, name, "Delete");
     await page.getByTestId("neutrino-delete-confirm").click();
     await expect(page.getByTestId(`neutrino-secret-row-${name}`)).toHaveCount(0, {
       timeout: 60_000,
@@ -101,8 +97,7 @@ test.describe("pw-vault-validation", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Rotate" }).click();
+    await clickSecretAction(page, name, "Rotate");
     await page.getByTestId("neutrino-rotate-submit").click();
     await expect(page.getByTestId("neutrino-rotate-error")).toBeVisible({
       timeout: 60_000,
@@ -151,8 +146,7 @@ test.describe("pw-vault-authz", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Reveal" }).click();
+    await clickSecretAction(page, name, "Reveal");
     await expectMutationDenied(page);
   });
 
@@ -165,8 +159,7 @@ test.describe("pw-vault-authz", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Rotate" }).click();
+    await clickSecretAction(page, name, "Rotate");
     await page.getByLabel("New plaintext").fill("rotate-denied");
     await page.getByTestId("neutrino-rotate-submit").click();
     await expectMutationDenied(page);
@@ -184,8 +177,7 @@ test.describe("pw-vault-authz", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await clickSecretAction(page, name, "Delete");
     await page.getByTestId("neutrino-delete-confirm").click();
     await expectMutationDenied(page);
     await expect(page.getByTestId(`neutrino-secret-row-${name}`)).toBeVisible();
@@ -219,8 +211,7 @@ test.describe("pw-vault-requestor", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Rotate" }).click();
+    await clickSecretAction(page, name, "Rotate");
     await page.getByLabel("New plaintext").fill("requestor-v2");
     await page.getByTestId("neutrino-rotate-submit").click();
     await expect(page.getByTestId(`neutrino-secret-version-${name}`)).toHaveText(
@@ -251,8 +242,7 @@ test.describe("pw-vault-requestor", () => {
       timeout: 60_000,
     });
 
-    await openSecretActions(page, name);
-    await page.getByRole("menuitem", { name: "Reveal" }).click();
+    await clickSecretAction(page, name, "Reveal");
     await expectMutationDenied(page);
     await expect(page.getByTestId("neutrino-reveal-plaintext")).toHaveCount(0);
   });
