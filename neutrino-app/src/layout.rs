@@ -40,7 +40,12 @@ pub fn NeutrinoAppLayout() -> impl IntoView {
                 <Navigation config=NavigationConfig::new().with_selected_value(selected_value).with_open_categories(open_categories)>
                     <NavigationMaterial slot />
                     <NavigationBody slot>
-                        <NavigationLink path="/neutrino" value="/neutrino" icon=icondata::AiKeyOutlined exact=true test_id="nav-secrets">"Secrets"</NavigationLink>
+                        <div id="secrets-nav-secrets">
+                            <NavigationLink path="/secrets" value="/secrets" icon=icondata::AiKeyOutlined exact=true test_id="nav-secrets">"Secrets"</NavigationLink>
+                        </div>
+                        <div id="secrets-nav-acl">
+                            <NavigationLink path="/secrets/acl" value="/secrets/acl" icon=icondata::AiTeamOutlined test_id="nav-secrets-acl">"ACLs"</NavigationLink>
+                        </div>
                     </NavigationBody>
                 </Navigation>
             </ShellLeftNav>

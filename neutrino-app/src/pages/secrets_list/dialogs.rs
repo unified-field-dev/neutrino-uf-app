@@ -12,6 +12,7 @@ use uf_product::primitives::{
 use crate::server::VaultSecretRow;
 
 #[component]
+#[allow(clippy::too_many_lines)] // Orbital Dialog field markup
 pub(super) fn CreateSecretDialog(
     open: RwSignal<bool>,
     new_name: RwSignal<String>,
@@ -32,22 +33,22 @@ pub(super) fn CreateSecretDialog(
                     <DialogContent>
                         <Flex vertical=true gap=SpacingSize::Size120.flex_gap()>
                             <Field label="Name">
-                                <div data-testid="neutrino-create-name">
+                                <div id="secrets-create-name" data-testid="neutrino-create-name">
                                     <Input bind=new_name appearance=InputAppearance::with_placeholder("my-api-token") />
                                 </div>
                             </Field>
                             <Field label="Scope path">
-                                <div data-testid="neutrino-create-scope">
+                                <div id="secrets-create-scope" data-testid="neutrino-create-scope">
                                     <Input bind=new_scope appearance=InputAppearance::with_placeholder("/gluon/provider_account/...") />
                                 </div>
                             </Field>
                             <Field label="Kind">
-                                <div data-testid="neutrino-create-kind">
+                                <div id="secrets-create-kind" data-testid="neutrino-create-kind">
                                     <Input bind=new_kind appearance=InputAppearance::with_placeholder("provider_api_token") />
                                 </div>
                             </Field>
                             <Field label="Plaintext">
-                                <div data-testid="neutrino-create-plaintext">
+                                <div id="secrets-create-plaintext" data-testid="neutrino-create-plaintext">
                                 <Input
                                     bind=new_plaintext
                                     appearance=InputAppearance {
@@ -66,10 +67,12 @@ pub(super) fn CreateSecretDialog(
                         </Flex>
                     </DialogContent>
                     <DialogActions>
-                        <Button appearance=ButtonAppearance::Secondary on_click=on_cancel>
-                            "Cancel"
-                        </Button>
-                        <div data-testid="neutrino-create-submit">
+                        <div id="secrets-create-cancel" data-testid="neutrino-create-cancel">
+                            <Button appearance=ButtonAppearance::Secondary on_click=on_cancel>
+                                "Cancel"
+                            </Button>
+                        </div>
+                        <div id="secrets-create-submit" data-testid="neutrino-create-submit">
                         <Button
                             appearance=ButtonAppearance::Primary
                             on_click=on_submit
@@ -117,18 +120,31 @@ pub(super) fn RevealSecretDialog(
                                     <MessageBar intent=MessageBarIntent::Error>{msg}</MessageBar>
                                 </div>
                             })}
-                            <Show when=move || !reveal_b64.get().is_empty()>
-                                <Field label="Plaintext (base64)">
-                                    <div data-testid="neutrino-reveal-plaintext">
-                                        <Input bind=reveal_b64 appearance=InputAppearance { readonly: Signal::from(true), ..Default::default() } />
-                                    </div>
-                                </Field>
-                            </Show>
+                            // Spotlight cutout uses HTML id (always mounted). data-testid
+                            // only when plaintext is present so denied-reveal e2e can assert absence.
+                            <div id="secrets-reveal-plaintext">
+                                <Show
+                                    when=move || !reveal_b64.get().is_empty()
+                                    fallback=move || {
+                                        view! {
+                                            <Show when=move || !reveal_loading.get()>
+                                                <Caption1>"The revealed value appears here after a successful reveal."</Caption1>
+                                            </Show>
+                                        }
+                                    }
+                                >
+                                    <Field label="Plaintext (base64)">
+                                        <div data-testid="neutrino-reveal-plaintext">
+                                            <Input bind=reveal_b64 appearance=InputAppearance { readonly: Signal::from(true), ..Default::default() } />
+                                        </div>
+                                    </Field>
+                                </Show>
+                            </div>
                             <Caption1>"Copy once; closing clears this dialog."</Caption1>
                         </Flex>
                     </DialogContent>
                     <DialogActions>
-                        <div data-testid="neutrino-reveal-close">
+                        <div id="secrets-reveal-close" data-testid="neutrino-reveal-close">
                             <Button appearance=ButtonAppearance::Primary on_click=on_close>
                                 "Close"
                             </Button>
@@ -161,6 +177,7 @@ pub(super) fn RotateSecretDialog(
                                 <Subtitle2>{t.name.clone()}</Subtitle2>
                             })}
                             <Field label="New plaintext">
+                                <div id="secrets-rotate-plaintext" data-testid="neutrino-rotate-plaintext">
                                 <Input
                                     bind=rotate_plaintext
                                     appearance=InputAppearance {
@@ -169,6 +186,7 @@ pub(super) fn RotateSecretDialog(
                                         ..Default::default()
                                     }
                                 />
+                                </div>
                             </Field>
                             {move || rotate_error.get().map(|msg| view! {
                                 <div data-testid="neutrino-rotate-error">
@@ -189,7 +207,7 @@ pub(super) fn RotateSecretDialog(
                         >
                             "Cancel"
                         </Button>
-                        <div data-testid="neutrino-rotate-submit">
+                        <div id="secrets-rotate-submit" data-testid="neutrino-rotate-submit">
                         <Button
                             appearance=ButtonAppearance::Primary
                             on_click=on_submit
@@ -219,12 +237,17 @@ pub(super) fn DeleteSecretDialog(
                 <DialogBody>
                     <DialogTitle>"Delete secret"</DialogTitle>
                     <DialogContent>
-                        {move || delete_target.get().map(|t| view! {
-                            <p>
-                                "Permanently delete " <strong>{t.name}</strong>
-                                " and all versions?"
-                            </p>
-                        })}
+                        {move || match delete_target.get() {
+                            Some(t) => view! {
+                                <p>
+                                    "Permanently delete " <strong>{t.name}</strong>
+                                    " and all versions?"
+                                </p>
+                            }.into_any(),
+                            None => view! {
+                                <p>"Confirm permanently deletes the secret and its versions. Cancel aborts."</p>
+                            }.into_any(),
+                        }}
                         {move || delete_error.get().map(|msg| view! {
                             <MessageBar intent=MessageBarIntent::Error>{msg}</MessageBar>
                         })}
@@ -239,7 +262,7 @@ pub(super) fn DeleteSecretDialog(
                         >
                             "Cancel"
                         </Button>
-                        <div data-testid="neutrino-delete-confirm">
+                        <div id="secrets-delete-confirm" data-testid="neutrino-delete-confirm">
                         <Button
                             appearance=ButtonAppearance::Primary
                             on_click=on_confirm

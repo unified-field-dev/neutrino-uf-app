@@ -3,14 +3,14 @@
 use leptos::prelude::*;
 use uf_product::components::{Card, EmptyState, SkeletonItemSize};
 use uf_product::primitives::{
-    Button, ButtonAppearance, ButtonSize, Flex, FlexGap, Menu, MenuItem, MenuTrigger, MessageBar,
-    MessageBarIntent, SkeletonItem, Table, TableBody, TableCell, TableHeader, TableHeaderCell,
-    TableRow,
+    Button, ButtonAppearance, ButtonSize, Flex, FlexGap, MessageBar, MessageBarIntent,
+    SkeletonItem, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow,
 };
 
 use crate::server::VaultSecretRow;
 
 #[component]
+#[allow(clippy::too_many_lines)] // table + row action chrome
 pub(super) fn SecretsTable(
     secrets: Resource<Result<Vec<VaultSecretRow>, ServerFnError>>,
     action_busy_id: RwSignal<Option<String>>,
@@ -21,14 +21,25 @@ pub(super) fn SecretsTable(
     view! {
         <Flex vertical=true fill=true full_width=true gap=FlexGap::Size(0)>
         <Card>
+            <div id="secrets-table">
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHeaderCell>"Name"</TableHeaderCell>
-                        <TableHeaderCell>"Scope"</TableHeaderCell>
-                        <TableHeaderCell>"Kind"</TableHeaderCell>
-                        <TableHeaderCell>"Version"</TableHeaderCell>
-                        <TableHeaderCell>"Created"</TableHeaderCell>
+                        <TableHeaderCell>
+                            <div id="secrets-col-name">"Name"</div>
+                        </TableHeaderCell>
+                        <TableHeaderCell>
+                            <div id="secrets-col-scope">"Scope"</div>
+                        </TableHeaderCell>
+                        <TableHeaderCell>
+                            <div id="secrets-col-kind">"Kind"</div>
+                        </TableHeaderCell>
+                        <TableHeaderCell>
+                            <div id="secrets-col-version">"Version"</div>
+                        </TableHeaderCell>
+                        <TableHeaderCell>
+                            <div id="secrets-col-created">"Created"</div>
+                        </TableHeaderCell>
                         <TableHeaderCell>"Actions"</TableHeaderCell>
                     </TableRow>
                 </TableHeader>
@@ -61,7 +72,7 @@ pub(super) fn SecretsTable(
                             }
                             view! {
                                 <TableBody>
-                                    {rows.into_iter().map(|row| {
+                                    {rows.into_iter().enumerate().map(|(idx, row)| {
                                         let row_name = row.name.clone();
                                         let row_name_ver = row.name.clone();
                                         let row_name_act = row.name.clone();
@@ -72,6 +83,7 @@ pub(super) fn SecretsTable(
                                             let id = row.id.clone();
                                             move || action_busy_id.get().as_deref() == Some(id.as_str())
                                         });
+                                        let spotlight_first = idx == 0;
                                         view! {
                                             <TableRow>
                                                 <TableCell>
@@ -89,29 +101,87 @@ pub(super) fn SecretsTable(
                                                 <TableCell>{row.created_at.clone()}</TableCell>
                                                 <TableCell>
                                                     <div data-testid=format!("neutrino-secret-actions-{}", row_name_act)>
-                                                    <Menu
-                                                        on_select=move |key: &str| {
-                                                            match key {
-                                                                "reveal" => on_reveal.run(row_reveal.clone()),
-                                                                "rotate" => on_rotate.run(row_rotate.clone()),
-                                                                "delete" => on_delete.run(row_delete.clone()),
-                                                                _ => {}
-                                                            }
-                                                        }
-                                                    >
-                                                        <MenuTrigger slot>
-                                                            <Button
-                                                                appearance=ButtonAppearance::Subtle
-                                                                icon=icondata::AiMoreOutlined
-                                                                size=ButtonSize::Small
-                                                                disabled=is_busy
-                                                                attr:aria-label="Open secret actions"
-                                                            />
-                                                        </MenuTrigger>
-                                                        <MenuItem value="reveal">"Reveal"</MenuItem>
-                                                        <MenuItem value="rotate">"Rotate"</MenuItem>
-                                                        <MenuItem value="delete">"Delete"</MenuItem>
-                                                    </Menu>
+                                                    <Flex gap=FlexGap::Size(4)>
+                                                        {if spotlight_first {
+                                                            view! {
+                                                                <div id="secrets-action-reveal">
+                                                                    <Button
+                                                                        appearance=ButtonAppearance::Subtle
+                                                                        size=ButtonSize::Small
+                                                                        disabled=is_busy
+                                                                        attr:aria-label="Reveal secret"
+                                                                        on_click=Callback::new(move |_| {
+                                                                            on_reveal.run(row_reveal.clone());
+                                                                        })
+                                                                    >
+                                                                        "Reveal"
+                                                                    </Button>
+                                                                </div>
+                                                                <div id="secrets-action-rotate">
+                                                                    <Button
+                                                                        appearance=ButtonAppearance::Subtle
+                                                                        size=ButtonSize::Small
+                                                                        disabled=is_busy
+                                                                        attr:aria-label="Rotate secret"
+                                                                        on_click=Callback::new(move |_| {
+                                                                            on_rotate.run(row_rotate.clone());
+                                                                        })
+                                                                    >
+                                                                        "Rotate"
+                                                                    </Button>
+                                                                </div>
+                                                                <div id="secrets-action-delete">
+                                                                    <Button
+                                                                        appearance=ButtonAppearance::Subtle
+                                                                        size=ButtonSize::Small
+                                                                        disabled=is_busy
+                                                                        attr:aria-label="Delete secret"
+                                                                        on_click=Callback::new(move |_| {
+                                                                            on_delete.run(row_delete.clone());
+                                                                        })
+                                                                    >
+                                                                        "Delete"
+                                                                    </Button>
+                                                                </div>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <Button
+                                                                    appearance=ButtonAppearance::Subtle
+                                                                    size=ButtonSize::Small
+                                                                    disabled=is_busy
+                                                                    attr:aria-label="Reveal secret"
+                                                                    on_click=Callback::new(move |_| {
+                                                                        on_reveal.run(row_reveal.clone());
+                                                                    })
+                                                                >
+                                                                    "Reveal"
+                                                                </Button>
+                                                                <Button
+                                                                    appearance=ButtonAppearance::Subtle
+                                                                    size=ButtonSize::Small
+                                                                    disabled=is_busy
+                                                                    attr:aria-label="Rotate secret"
+                                                                    on_click=Callback::new(move |_| {
+                                                                        on_rotate.run(row_rotate.clone());
+                                                                    })
+                                                                >
+                                                                    "Rotate"
+                                                                </Button>
+                                                                <Button
+                                                                    appearance=ButtonAppearance::Subtle
+                                                                    size=ButtonSize::Small
+                                                                    disabled=is_busy
+                                                                    attr:aria-label="Delete secret"
+                                                                    on_click=Callback::new(move |_| {
+                                                                        on_delete.run(row_delete.clone());
+                                                                    })
+                                                                >
+                                                                    "Delete"
+                                                                </Button>
+                                                            }.into_any()
+                                                        }}
+                                                    </Flex>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -143,6 +213,7 @@ pub(super) fn SecretsTable(
                     }}
                 </Suspense>
             </Table>
+            </div>
         </Card>
         </Flex>
     }

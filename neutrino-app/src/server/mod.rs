@@ -134,6 +134,7 @@ async fn vault_access_for_actor(
 }
 
 #[cfg(feature = "ssr")]
+#[allow(clippy::needless_pass_by_value)] // `map_err(map_neutrino_error)` needs owned Err
 fn map_neutrino_error(err: neutrino::NeutrinoError) -> ServerFnError {
     use neutrino::NeutrinoError;
     match &err {
