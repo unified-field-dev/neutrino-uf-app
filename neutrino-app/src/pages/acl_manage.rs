@@ -55,7 +55,7 @@ pub fn AclManagePage() -> impl IntoView {
     });
 
     let on_select_secret = move |ev: leptos::ev::Event| {
-        let value = event_target_value(&ev);
+        let value = select_event_value(&ev);
         if value.is_empty() {
             selected_secret_id.set(None);
         } else {
@@ -291,7 +291,7 @@ pub fn AclManagePage() -> impl IntoView {
     }
 }
 
-fn event_target_value(ev: &leptos::ev::Event) -> String {
+fn select_event_value(ev: &leptos::ev::Event) -> String {
     use wasm_bindgen::JsCast;
     ev.target()
         .and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok())

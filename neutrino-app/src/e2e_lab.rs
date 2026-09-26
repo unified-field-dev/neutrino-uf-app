@@ -27,6 +27,7 @@ pub fn set_fresh_totp_mode(mode: Option<&str>) {
     }
 }
 
+#[cfg(feature = "ssr")]
 fn fresh_totp_empty() -> bool {
     if FRESH_TOTP.load(Ordering::SeqCst) == 1 {
         return true;
@@ -105,7 +106,7 @@ async fn clear_lab_totp_replay_guard(session_uid: &str) -> Result<(), ServerFnEr
         now,
     )
     .map_err(|e| ServerFnError::new(format!("STEP_UP:store: {e}")))?;
-    lepton::generated::TotpFactor::upsert_used(
+    lepton::generated::TotpFactor::upsert(
         &factor_id,
         factor,
         &system,
